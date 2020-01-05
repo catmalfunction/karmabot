@@ -1,49 +1,30 @@
+import logging
+from sqlalchemy import func
 from bot.db import db_session
-from bot.db.karma_user import KarmaUser
+from bot.db.karma_target import KarmaTarget
 
 TOP_NUMBER = 10
 
 
 def get_karma(**kwargs):
-    """Get your current karma score"""
-    user_id = kwargs.get("user_id").strip("<>@")
+    """Get a current karma score"""
+    karmas_to_check = kwargs.get("text").split()[1:]
+    if not len(karmas_to_check):
+        karmas_to_check = [kwargs.get("user_id")]
 
+    karma_msg = ""
     session = db_session.create_session()
-    kama_user = session.query(KarmaUser).get(user_id)
 
-    try:
-        if not kama_user:
-            return "User not found"
+    for karma_item in karmas_to_check:
+        target = session.query(KarmaTarget).filter(
+            func.lower(KarmaTarget.target) == func.lower(karma_item)
+        ).one_or_none()
 
-        if kama_user.karma_points == 0:
-            return "Sorry, you don't have any karma yet"
+        if target:
+            karma_msg += f"Karma for `{target.target}` is: {target.karma_points}.\r\n"
+        else:
+            karma_msg += f"`{karma_item}` has never graced the karma database.\r\n"
 
-        return (
-            f"Hey {kama_user.username}, your current karma is {kama_user.karma_points}"
-        )
-
-    finally:
-        session.close()
-
-
-def top_karma(**kwargs):
-    """Get the PyBites members with most karma"""
-    output = ["PyBites members with most karma:"]
-
-    session = db_session.create_session()
-    top_users = (
-        session.query(KarmaUser)
-        .order_by(KarmaUser.karma_points.desc())
-        .limit(TOP_NUMBER)
-    )
-
-    try:
-        for top_user in top_users:
-            output.append(
-                "{:<20} -> {}".format(top_user.username, top_user.karma_points)
-            )
-        ret = "\n".join(output)
-        return "```{}```".format(ret)
-
-    finally:
-        session.close()
+    session.close()
+    logging.info(f"Checked karma for: {' '.join(karmas_to_check)}.\r\n")
+    return karma_msg

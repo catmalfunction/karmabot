@@ -81,5 +81,4 @@ def doc_command(**kwargs) -> str:
 if __name__ == "__main__":
     import sys
 
-    kwargs = {"user": "Erik", "channel": "#unix", "text": " ".join(sys.argv[1:])}
     print(doc_command(**kwargs))

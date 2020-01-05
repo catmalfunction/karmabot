@@ -26,10 +26,11 @@ class KarmaTransaction(SqlAlchemyBase):
     channel = sa.Column(sa.String)
     karma = sa.Column(sa.Integer, nullable=False)
 
-    __table_args__ = (sa.CheckConstraint(giver_id != receiver_id),)
-
     def __repr__(self):
         return (
             f"[KarmaTransaction] ID: {self.id} | {self.giver_id} -> "
-            f"{self.receiver_id} | {self.timestamp} | Karma: {self.karma}"
+            f"{self.target_id} | {self.timestamp} | Karma: {self.karma}"
         )
+
+    def __str__(self):
+        return self.__repr__()

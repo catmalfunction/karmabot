@@ -1,13 +1,19 @@
 import logging
 
+from sqlalchemy import func
 from bot.settings import SLACK_CLIENT, KARMABOT_ID, SLACK_ID_FORMAT, MAX_POINTS
 from .db import db_session
 from .db.karma_transaction import KarmaTransaction
 from .db.karma_user import KarmaUser
+from .db.karma_target import KarmaTarget
 from .slack import post_msg, get_available_username, get_channel_name
 
 
 class GetUserInfoException(Exception):
+    pass
+
+
+class GetTargetInfoException(Exception):
     pass
 
 
@@ -33,7 +39,7 @@ def process_karma_changes(message, karma_changes):
                 receiver_id=receiver_id,
                 channel_id=message.channel_id,
             )
-        except GetUserInfoException:
+        except GetTargetInfoException:
             return
 
         try:
@@ -45,10 +51,10 @@ def process_karma_changes(message, karma_changes):
 
 
 class Karma:
-    def __init__(self, giver_id, receiver_id, channel_id):
+    def __init__(self, giver_id, target, channel_id):
         self.session = db_session.create_session()
         self.giver = self.session.query(KarmaUser).get(giver_id)
-        self.receiver = self.session.query(KarmaUser).get(receiver_id)
+        self.target = self._find_karma_target(target)
         self.channel_id = channel_id
         self.last_score_maxed_out = False
 
@@ -56,6 +62,20 @@ class Karma:
             self.giver = self._create_karma_user(giver_id)
         if not self.receiver:
             self.receiver = self._create_karma_user(receiver_id)
+
+    def _create_karma_target(self, target):
+        user = None
+        if SLACK_ID_FORMAT.match(target):
+            stripped = target.strip("<>@")
+            user = self.session.query(KarmaUser).get(stripped)
+            if not user:
+                user = self._create_karma_user(stripped)
+        new_target = KarmaTarget(target=target, user_id=user.user_id if user else None)
+        self.session.add(new_target)
+        self.session.commit()
+
+        logging.info(f"Created new KarmaTarget: {repr(new_target)}")
+        return new_target
 
     def _create_karma_user(self, user_id):
         user_info = SLACK_CLIENT.api_call("users.info", user=user_id)
@@ -87,25 +107,26 @@ class Karma:
         if points > 0:
             text = (
                 f"Thanks {self.giver.username} for the extra karma"
-                f", my karma is {self.receiver.karma_points} now"
+                f", my karma is {self.target.karma_points} now"
             )
         else:
             text = (
                 f"Not cool {self.giver.username} lowering my karma "
-                f"to {self.receiver.karma_points}, but you are probably"
+                f"to {self.target.karma_points}, but you are probably"
                 f" right, I will work harder next time"
             )
         return text
 
     def _create_msg(self, points):
-        receiver_name = self.receiver.username
+        target_user = self.session.query(KarmaUser).get(self.target.user_id) if self.target.user_id else None
+        target_name = target_user.username if target_user else self.target.target
 
-        poses = "'" if receiver_name.endswith("s") else "'s"
+        poses = "'" if target_name.endswith("s") else "'s"
         action = "increase" if points > 0 else "decrease"
 
         text = (
-            f"{receiver_name}{poses} karma {action}d to "
-            f"{self.receiver.karma_points}"
+            f"{target_name}{poses} karma {action}d to "
+            f"{self.target.karma_points}"
         )
         if self.last_score_maxed_out:
             text += f" (= max {action} of {MAX_POINTS})"
@@ -115,7 +136,7 @@ class Karma:
     def _save_transaction(self, points):
         transaction = KarmaTransaction(
             giver_id=self.giver.user_id,
-            receiver_id=self.receiver.user_id,
+            target_id=self.target.target_id,
             channel=get_channel_name(self.channel_id),
             karma=points,
         )
@@ -140,16 +161,17 @@ class Karma:
             raise RuntimeError(err)
 
         try:
-            if self.receiver.user_id == self.giver.user_id:
+            target_user = self.session.query(KarmaUser).get(self.target.user_id) if self.target.user_id else None
+            if target_user and target_user.user_id == self.giver.user_id:
                 raise ValueError("Sorry, cannot give karma to self")
 
             points = self._calc_final_score(points)
-            self.receiver.karma_points += points
+            self.target.karma_points += points
             self.session.commit()
 
             self._save_transaction(points)
 
-            if self.receiver.user_id == KARMABOT_ID:
+            if target_user and target_user.user_id == KARMABOT_ID:
                 return self._create_msg_bot_self_karma(points)
             else:
                 return self._create_msg(points)
@@ -158,7 +180,7 @@ class Karma:
             logging.info(
                 (
                     f"[Karmachange] {self.giver.user_id} to "
-                    f"{self.receiver.user_id}: {points}"
+                    f"{self.target.target}: {points}"
                 )
             )
             self.session.close()

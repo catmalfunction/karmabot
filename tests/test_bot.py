@@ -209,7 +209,7 @@ def test_lookup_username(filled_db_session, test_user_id, expected):
 def test_create_karma_user(mock_empty_db_session, mock_slack_api_call):
     karma = Karma("ABC123", "XYZ123", "CHANNEL42")
     assert karma.giver.username == "pybob"
-    assert karma.receiver.username == "clamytoe"
+    assert karma.target.username == "clamytoe"
 
     first = db_session.create_session().query(KarmaUser).get("ABC123")
     second = db_session.create_session().query(KarmaUser).get("XYZ123")

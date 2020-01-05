@@ -11,7 +11,7 @@ from commands.age import pybites_age
 from commands.doc import doc_command
 from commands.feed import get_pybites_last_entries
 from commands.help import create_commands_table
-from commands.score import get_karma, top_karma
+from commands.score import get_karma
 from commands.tip import get_random_tip
 from commands.topchannels import get_recommended_channels
 from commands.update_username import update_username, get_user_name
@@ -29,13 +29,14 @@ TEXT_FILTER_REPLIES = {
 }
 
 AUTOMATED_COMMANDS = {"welcome": welcome_user}  # not manual
-ADMIN_BOT_COMMANDS = {"top_karma": top_karma}
+ADMIN_BOT_COMMANDS = {}
 PUBLIC_BOT_COMMANDS = {
     "age": pybites_age,
     "add": add_command,
     "help": create_commands_table,
     "tip": get_random_tip,
     "topchannels": get_recommended_channels,
+    "karma": get_karma,
 }
 PRIVATE_BOT_COMMANDS = {
     "feed": get_pybites_last_entries,
@@ -197,7 +198,7 @@ def perform_bot_cmd(msg, private=True):
     if not command:
         return None
 
-    kwargs = {"user_id": user_id, "channel": channel_id, "text": text}
+    kwargs = {"user_id": user_id, "channel": channel_id, "text": text if private else ' '.join(text.split()[1:])}
     return command(**kwargs)
 
 
@@ -236,17 +237,6 @@ def parse_next_msg():
     if event_type == "channel_created":
         bot_joins_new_channel(msg["channel"]["id"])
         return None
-
-    # 2. if a new user joins send a welcome msg
-    if event_type == "team_join":
-        # return the message to apply the karma change
-        # https://api.slack.com/methods/users.info
-        welcome_msg = AUTOMATED_COMMANDS["welcome"](user_id["id"])  # new user joining
-        post_msg(user_id["id"], welcome_msg)
-        # return Message object to handle karma in main
-        return Message(
-            user_id=KARMABOT_ID, channel_id=GENERAL_CHANNEL, text=welcome_msg
-        )
     # end events
 
     # not sure but sometimes we get dicts?
@@ -270,7 +260,7 @@ def parse_next_msg():
     # if we recognize a valid bot command post its output, done
     # DM's = channels start with a 'D' / channel can be dict?!
     private = channel_id and channel_id.startswith("D")
-    cmd_output = perform_bot_cmd(msg, private)
+    cmd_output = perform_bot_cmd(msg, private=private)
     if cmd_output:
         post_msg(channel_id, cmd_output)
         return None

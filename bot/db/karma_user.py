@@ -21,3 +21,6 @@ class KarmaUser(SqlAlchemyBase):
             f"<KarmaUser> ID: {self.user_id} | Username: {self.username} | "
             f"Karma-Points: {self.karma_points}"
         )
+
+    def __str__(self):
+        return self.__repr__()
