@@ -2,7 +2,7 @@ import sys
 
 from bot.settings import SLACK_CLIENT
 
-BOT_NAME = "karmabot"
+BOT_NAME = "karmakhameleon"
 
 api_call = SLACK_CLIENT.api_call("users.list")
 

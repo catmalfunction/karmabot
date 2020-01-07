@@ -4,18 +4,19 @@ import re
 from dotenv import load_dotenv
 from slackclient import SlackClient
 
-dotenv_path = Path(__file__).resolve().parents[1] / ".env"
+dotenv_path = ".env"
 load_dotenv(dotenv_path)
 
 # Environment variables
 KARMABOT_ID = os.environ.get("SLACK_KARMA_BOTUSER")
+KARMABOT_NAME = os.environ.get("SLACK_KARMA_BOTNAME")
 SLACK_TOKEN = os.environ.get("SLACK_KARMA_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 SLACK_INVITE_TOKEN = os.environ.get("SLACK_KARMA_INVITE_USER_TOKEN")
 
 # Slack
-GENERAL_CHANNEL = "C4SFQJJ9Z"
-ADMINS = ("U4RTDPKUH", "U4TN52NG6", "U4SJVFMEG", "UKS45DGFQ", "U5V0ZJTFF", "UH5NGGK0E")
+GENERAL_CHANNEL = os.environ.get("GENERAL_CHANNEL")
+ADMINS = ("UHAFKUACT")
 SLACK_ID_FORMAT = re.compile(r"^<@[^>]+>$")
 SLACK_CLIENT = SlackClient(SLACK_TOKEN)
 

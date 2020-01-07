@@ -17,8 +17,8 @@ class KarmaTransaction(SqlAlchemyBase):
         autoincrement=True,
     )
     giver_id = sa.Column(sa.String, sa.ForeignKey("karma_user.user_id"), nullable=False)
-    receiver_id = sa.Column(
-        sa.String, sa.ForeignKey("karma_user.user_id"), nullable=False
+    target_id = sa.Column(
+        sa.Integer, sa.ForeignKey("karma_target.target_id"), nullable=False
     )
 
     # data

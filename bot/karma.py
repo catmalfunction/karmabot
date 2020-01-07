@@ -18,12 +18,7 @@ class GetTargetInfoException(Exception):
 
 
 def _parse_karma_change(karma_change):
-    user_id, voting = karma_change
-
-    if SLACK_ID_FORMAT.match(user_id):
-        receiver = user_id.strip("<>@")
-    else:
-        receiver = user_id.strip(" #").lower()  # ?
+    receiver, voting = karma_change
 
     points = voting.count("+") - voting.count("-")
 
@@ -32,11 +27,11 @@ def _parse_karma_change(karma_change):
 
 def process_karma_changes(message, karma_changes):
     for karma_change in karma_changes:
-        receiver_id, points = _parse_karma_change(karma_change)
+        target, points = _parse_karma_change(karma_change)
         try:
             karma = Karma(
                 giver_id=message.user_id,
-                receiver_id=receiver_id,
+                target=target,
                 channel_id=message.channel_id,
             )
         except GetTargetInfoException:
@@ -60,8 +55,13 @@ class Karma:
 
         if not self.giver:
             self.giver = self._create_karma_user(giver_id)
-        if not self.receiver:
-            self.receiver = self._create_karma_user(receiver_id)
+        if not self.target:
+            self.target = self._create_karma_target(target)
+
+    def _find_karma_target(self, target):
+        return self.session.query(KarmaTarget).filter(
+            func.lower(KarmaTarget.target) == func.lower(target)
+        ).one_or_none()
 
     def _create_karma_target(self, target):
         user = None

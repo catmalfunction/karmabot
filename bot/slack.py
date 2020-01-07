@@ -18,10 +18,9 @@ from commands.update_username import update_username, get_user_name
 from commands.welcome import welcome_user
 
 # bot commands
-from bot.settings import KARMABOT_ID, SLACK_ID_FORMAT, SLACK_CLIENT, ADMINS
+from bot.settings import KARMABOT_ID, KARMABOT_NAME, SLACK_ID_FORMAT, SLACK_CLIENT, ADMINS, GENERAL_CHANNEL
 
 # constants
-GENERAL_CHANNEL = "C4SFQJJ9Z"
 TEXT_FILTER_REPLIES = {
     "zen": "`import this`",
     "cheers": ":beers:",
@@ -156,7 +155,7 @@ def _get_cmd(text, private=True):
         return text.split()[0].strip().lower()
 
     # bot command needs to have bot first in msg
-    if not text.strip("<>@").startswith((KARMABOT_ID, "karmabot")):
+    if not text.strip("<>@").startswith((KARMABOT_ID, KARMABOT_NAME)):
         return None
 
     # need at least a command after karmabot
